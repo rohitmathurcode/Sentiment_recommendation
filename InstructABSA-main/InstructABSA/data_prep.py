@@ -55,21 +55,35 @@ class DatasetLoader:
         df = df.drop(['len', 'record_idx'], axis=1).reset_index(drop = True)
         return df
 
-    def create_data_in_ate_format(self, df, key, text_col, aspect_col, bos_instruction = '', 
-                    eos_instruction = ''):
+
+    def create_data_in_ate_format(self, df, key, text_col, aspect_col, bos_instruction = '', eos_instruction = ''):
         """
         Prepare the data in the input format required.
         """
         if df is None:
             return
-        try:
-            df.iloc[0][aspect_col][0][key]
-        except:
-            df = self.reconstruct_strings(df, aspect_col)
-        df['labels'] = df[aspect_col].apply(lambda x: ', '.join([i[key] for i in x]))
-        df['text'] = df[text_col].apply(lambda x: bos_instruction + x + eos_instruction)
+
+        # Handle dictionaries in aspect_col
+        def process_aspect(x):
+            if isinstance(x, dict):
+                return ', '.join([f"{k}: {v}" for k, v in x.items()])
+            else:
+                return str(x)  # handle any other data types
+
+        # Handle unexpected data types in text_col
+        def process_text(x):
+            if isinstance(x, str):
+                return bos_instruction + x + eos_instruction
+            else:
+                print(f"Unexpected type: {type(x)} with value: {x} in text_col")
+                return bos_instruction + str(x) + eos_instruction  # convert non-string to string
+
+        df['labels'] = df[aspect_col].apply(process_aspect)
+        df['text'] = df[text_col].apply(process_text)
+
         return df
 
+    
     def create_data_in_atsc_format(self, df, on, key, text_col, aspect_col, bos_instruction = '', 
                     delim_instruction = '', eos_instruction = ''):
         """
